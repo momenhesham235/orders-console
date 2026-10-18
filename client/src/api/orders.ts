@@ -1,4 +1,4 @@
-import { deleteRequest, getJson, postJson } from "./http.ts";
+import { deleteRequest, getJson, postJson, putJson } from "./http.ts";
 
 // Mirrors the server's API contract (server/src/orders).
 export const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
@@ -15,6 +15,17 @@ export interface OrderSummary {
   totalCents: number;
   itemCount: number;
   createdAt: string;
+}
+
+export interface OrderItem {
+  productName: string;
+  quantity: number;
+  unitPriceCents: number;
+}
+
+export interface OrderDetail extends OrderSummary {
+  version: number;
+  items: OrderItem[];
 }
 
 export interface OrdersPage {
@@ -35,20 +46,37 @@ export function fetchOrders(filters: OrderFilters, cursor: string | null, signal
   return getJson<OrdersPage>("/api/orders", { ...filters, cursor, limit: PAGE_SIZE }, signal);
 }
 
+export function fetchOrder(id: number, signal: AbortSignal): Promise<OrderDetail> {
+  return getJson<{ order: OrderDetail }>(`/api/orders/${id}`, {}, signal).then(({ order }) => order);
+}
+
 export interface CreateOrderInput {
   customerName: string;
   customerEmail: string;
-  items: { productName: string; quantity: number; unitPriceCents: number }[];
+  items: OrderItem[];
 }
 
-// A request that hangs this long is abandoned and retried with the same key: if the first
-// attempt did reach the server, the retry gets that order back instead of creating another.
-const CREATE_TIMEOUT_MS = 15_000;
+export interface UpdateOrderInput extends CreateOrderInput {
+  status: OrderStatus;
+  /** The version the edit started from; the server answers 409 if the order has changed since. */
+  version: number;
+}
+
+// A write that hangs this long is abandoned. For a create, it is then retried with the same key:
+// if the first attempt did reach the server, the retry gets that order back instead of another.
+const WRITE_TIMEOUT_MS = 15_000;
 
 export async function createOrder(input: CreateOrderInput, idempotencyKey: string): Promise<OrderSummary> {
   const { order } = await postJson<{ order: OrderSummary }>("/api/orders", input, {
     headers: { "Idempotency-Key": idempotencyKey },
-    signal: AbortSignal.timeout(CREATE_TIMEOUT_MS),
+    signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
+  });
+  return order;
+}
+
+export async function updateOrder(id: number, input: UpdateOrderInput): Promise<OrderDetail> {
+  const { order } = await putJson<{ order: OrderDetail }>(`/api/orders/${id}`, input, {
+    signal: AbortSignal.timeout(WRITE_TIMEOUT_MS),
   });
   return order;
 }

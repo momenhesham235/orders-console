@@ -33,15 +33,24 @@ export function deleteRequest(path: string): Promise<void> {
   return request<void>(path, { method: "DELETE" });
 }
 
-export function postJson<T>(
-  path: string,
-  body?: unknown,
-  { headers, signal }: { headers?: Record<string, string>; signal?: AbortSignal } = {},
-): Promise<T> {
+interface SendOptions {
+  headers?: Record<string, string>;
+  signal?: AbortSignal;
+}
+
+function sendJson<T>(method: "POST" | "PUT", path: string, body: unknown, { headers, signal }: SendOptions): Promise<T> {
   return request<T>(path, {
-    method: "POST",
+    method,
     headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
+}
+
+export function postJson<T>(path: string, body?: unknown, options: SendOptions = {}): Promise<T> {
+  return sendJson<T>("POST", path, body, options);
+}
+
+export function putJson<T>(path: string, body: unknown, options: SendOptions = {}): Promise<T> {
+  return sendJson<T>("PUT", path, body, options);
 }

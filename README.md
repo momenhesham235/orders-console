@@ -62,6 +62,16 @@ The list never sends the table to the browser: it fetches 50 rows at a time with
 
 The trailing `id` in each sort index is the keyset tie-breaker, so "the page after (value, id)" is one index range scan. `EXPLAIN QUERY PLAN` shows a covering index search with no temporary sort for every filter and sort combination, and a page takes about 3 ms whether it is the first or the 500th. Searches of 1–2 characters use an escaped `LIKE` scan instead (the trigram index needs 3); see DECISIONS.md.
 
+## Editing and deleting orders
+
+Not required by the brief, but part of a usable console:
+
+- **Edit (agents and admins).** `GET /api/orders/:id` loads the order with its items, and `PUT /api/orders/:id` replaces the customer, status and items, with the total recomputed on the server.
+  - Edits use optimistic locking. The form sends the `version` it was opened with, and the update only applies `WHERE version = ?`.
+  - If someone else saved in between, the second save gets 409 instead of silently overwriting the first.
+  - Edits are not retried automatically: a retry of a save that did go through would wrongly report a conflict.
+- **Delete (admins only).** See the code review below.
+
 ## Code review: the contractor's auth middleware
 
 Every problem I found in the `auth.ts` / `routes.ts` snippet from the brief, and what replaced it. The fixed code lives in [`server/src/auth/`](server/src/auth/) and [`server/src/orders/orders.routes.ts`](server/src/orders/orders.routes.ts).
@@ -99,7 +109,7 @@ If she cannot answer, I would not build an irreversible bulk delete. Instead I w
 ## What I skipped and why
 
 - **Optional tasks O1 (slow stats API) and O2 (optimistic create).** The brief says doing one badly costs more than skipping it, so I spent the time on R1 and R2 correctness. After a create, the list refetches rather than updating optimistically.
-- **Automated tests beyond R2.** `npm test` covers R2 only. During development I verified the rest with throwaway scripts that are not committed: every page of 5 filter/sort combinations and 11 search cases against an independent reference, and 26 auth checks (forged, unsigned, expired and wrong-algorithm tokens, `?token=`, role checks, the rate limit). The rapid-filter behaviour has no automated client test; check it by hand with `SIMULATED_LATENCY_MS`. These are the first tests I would add.
+- **Automated tests beyond R2.** `npm test` covers R2 only. During development I verified the rest with throwaway scripts that are not committed: every page of 5 filter/sort combinations and 11 search cases against an independent reference, 26 auth checks (forged, unsigned, expired and wrong-algorithm tokens, `?token=`, role checks, the rate limit), and 12 edit checks (including two concurrent edits of the same version). The rapid-filter behaviour has no automated client test; check it by hand with `SIMULATED_LATENCY_MS`. These are the first tests I would add.
 - **Shared types between client and server.** The API types, the status list and the order validation rules are duplicated in `client/` and `server/`. A shared workspace package would stop them drifting.
 - **Total result count.** The list shows "N orders loaded" instead of "N of M", which avoids a `COUNT(*)` on every filter change.
 - **Production hardening.**
@@ -107,4 +117,3 @@ If she cannot answer, I would not build an irreversible bulk delete. Instead I w
   - Behind a reverse proxy, `trust proxy` must be set.
   - CSRF protection relies on `SameSite=Strict` cookies and JSON-only endpoints, with no CSRF token.
   - Idempotency keys never expire.
-- **Order details and status changes.** These were not in the brief.

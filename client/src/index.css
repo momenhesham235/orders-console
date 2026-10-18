@@ -210,12 +210,21 @@ button {
   max-width: calc(100vw - 32px);
   margin: 0;
   padding: 12px 16px;
-  border: 1px solid #aceebb;
   border-radius: 8px;
-  background: #dafbe1;
-  color: #1a7f37;
   font-size: 0.875rem;
   box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+}
+
+.toast--success {
+  border: 1px solid #aceebb;
+  background: #dafbe1;
+  color: #1a7f37;
+}
+
+.toast--error {
+  border: 1px solid #ffcecb;
+  background: #ffebe9;
+  color: var(--danger);
 }
 
 /* Modal */
@@ -370,22 +379,27 @@ button {
 
 .orders-row {
   display: grid;
-  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(200px, 1.8fr) 110px 64px 130px 170px;
+  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(200px, 1.8fr) 110px 64px 130px 170px 64px;
   align-items: center;
   gap: 12px;
-  min-width: 940px;
+  min-width: 1010px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
 }
 
-.orders-scroll--with-actions .orders-row {
-  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(200px, 1.8fr) 110px 64px 130px 170px 72px;
-  min-width: 1024px;
+.orders-scroll--admin .orders-row {
+  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(200px, 1.8fr) 110px 64px 130px 170px 136px;
+  min-width: 1082px;
 }
 
-.orders-scroll--with-actions .orders-body {
-  min-width: 1024px;
+.orders-scroll--admin .orders-body {
+  min-width: 1082px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .row-action {
@@ -425,7 +439,7 @@ button {
 
 .orders-body {
   position: relative;
-  min-width: 940px;
+  min-width: 1010px;
 }
 
 .orders-body .orders-row {

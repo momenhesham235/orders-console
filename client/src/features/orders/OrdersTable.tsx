@@ -12,11 +12,14 @@ interface OrdersTableProps {
   filters: OrderFilters;
   /** Present only while a search or status filter is active. */
   onClearFilters?: () => void;
+  onEditOrder: (order: OrderSummary) => void;
+  /** The order whose details are loading for the editor, if any. */
+  openingOrderId: number | null;
   /** Present only for admins. Hiding the button is cosmetic: the server enforces the role. */
   onDeleteOrder?: (order: OrderSummary) => void;
 }
 
-export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTableProps) {
+export function OrdersTable({ filters, onClearFilters, onEditOrder, openingOrderId, onDeleteOrder }: OrdersTableProps) {
   const {
     data,
     error,
@@ -92,7 +95,7 @@ export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTa
     <>
       <div
         ref={scrollRef}
-        className={onDeleteOrder ? "orders-scroll orders-scroll--with-actions" : "orders-scroll"}
+        className={onDeleteOrder ? "orders-scroll orders-scroll--admin" : "orders-scroll"}
         role="table" aria-label="Orders" aria-rowcount={hasNextPage ? -1 : rows.length}>
         <div role="row" className="orders-row orders-row--header">
           <span role="columnheader">#</span>
@@ -102,11 +105,9 @@ export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTa
           <span role="columnheader" className="numeric">Items</span>
           <span role="columnheader" className="numeric">Total</span>
           <span role="columnheader">Created</span>
-          {onDeleteOrder && (
-            <span role="columnheader">
-              <span className="visually-hidden">Actions</span>
-            </span>
-          )}
+          <span role="columnheader">
+            <span className="visually-hidden">Actions</span>
+          </span>
         </div>
 
         <div className="orders-body" style={{ height: virtualizer.getTotalSize() }}>
@@ -142,8 +143,17 @@ export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTa
                 <span role="cell" className="numeric">{order.itemCount}</span>
                 <span role="cell" className="numeric">{formatMoney(order.totalCents)}</span>
                 <span role="cell" className="muted">{formatDateTime(order.createdAt)}</span>
-                {onDeleteOrder && (
-                  <span role="cell">
+                <span role="cell" className="row-actions">
+                  <button
+                    type="button"
+                    className="row-action"
+                    aria-label={`Edit order ${order.id}`}
+                    disabled={openingOrderId !== null}
+                    onClick={() => onEditOrder(order)}
+                  >
+                    {openingOrderId === order.id ? "Opening…" : "Edit"}
+                  </button>
+                  {onDeleteOrder && (
                     <button
                       type="button"
                       className="row-action row-action--danger"
@@ -152,8 +162,8 @@ export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTa
                     >
                       Delete
                     </button>
-                  </span>
-                )}
+                  )}
+                </span>
               </div>
             );
           })}

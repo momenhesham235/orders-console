@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { CreateOrderInput } from "../../api/orders.ts";
+import type { CreateOrderInput, OrderDetail } from "../../api/orders.ts";
 
 // Client-side validation for fast feedback. The server validates the same rules again
 // (server/src/orders/orders.schema.ts) and is the one that is trusted.
@@ -15,6 +15,36 @@ export interface OrderDraft {
   customerName: string;
   customerEmail: string;
   items: ItemDraft[];
+}
+
+export function emptyItem(): ItemDraft {
+  return { rowId: crypto.randomUUID(), productName: "", quantity: "1", unitPrice: "" };
+}
+
+export function emptyDraft(): OrderDraft {
+  return { customerName: "", customerEmail: "", items: [emptyItem()] };
+}
+
+export function draftFromOrder(order: OrderDetail): OrderDraft {
+  return {
+    customerName: order.customerName,
+    customerEmail: order.customerEmail,
+    items: order.items.map((item) => ({
+      rowId: crypto.randomUUID(),
+      productName: item.productName,
+      quantity: String(item.quantity),
+      unitPrice: (item.unitPriceCents / 100).toFixed(2),
+    })),
+  };
+}
+
+/** Compares what the user typed, ignoring row ids, to tell whether a draft has unsaved changes. */
+export function draftSignature(draft: OrderDraft): string {
+  return JSON.stringify([
+    draft.customerName,
+    draft.customerEmail,
+    draft.items.map((item) => [item.productName, item.quantity, item.unitPrice]),
+  ]);
 }
 
 const PRICE_PATTERN = /^\d+(\.\d{1,2})?$/;

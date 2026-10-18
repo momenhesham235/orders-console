@@ -1,44 +1,56 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import type { OrderSummary } from "../../api/orders.ts";
+import { ApiError } from "../../api/http.ts";
+import { ORDER_STATUSES, type OrderDetail, type OrderStatus, type OrderSummary } from "../../api/orders.ts";
 import { Modal } from "../../components/Modal.tsx";
 import { describeError } from "../../lib/describeError.ts";
 import { formatMoney } from "../../lib/format.ts";
-import { parseOrderDraft, priceToCents, type ItemDraft, type OrderDraft, type OrderFormErrors } from "./orderForm.schema.ts";
+import {
+  draftFromOrder,
+  draftSignature,
+  emptyDraft,
+  emptyItem,
+  parseOrderDraft,
+  priceToCents,
+  type ItemDraft,
+  type OrderFormErrors,
+} from "./orderForm.schema.ts";
 import { isRetryable, useCreateOrder } from "./useCreateOrder.ts";
+import { useUpdateOrder } from "./useUpdateOrder.ts";
 
-function emptyItem(): ItemDraft {
-  return { rowId: crypto.randomUUID(), productName: "", quantity: "1", unitPrice: "" };
-}
-
-function emptyDraft(): OrderDraft {
-  return { customerName: "", customerEmail: "", items: [emptyItem()] };
-}
-
-function isDraftEmpty(draft: OrderDraft): boolean {
-  return (
-    !draft.customerName.trim() &&
-    !draft.customerEmail.trim() &&
-    draft.items.length === 1 &&
-    draft.items.every((item) => !item.productName.trim() && !item.unitPrice.trim() && item.quantity === "1")
-  );
-}
-
-interface CreateOrderFormProps {
-  onCreated: (order: OrderSummary) => void;
+type OrderFormModalProps = {
+  onSaved: (order: OrderSummary) => void;
   onCancel: () => void;
+} & ({ mode: "create" } | { mode: "edit"; order: OrderDetail });
+
+function saveErrorMessage(isEdit: boolean, error: unknown): string {
+  if (isEdit && error instanceof ApiError && error.status === 409) {
+    return "Someone else changed this order while you were editing it. Close it and open it again to see their changes.";
+  }
+  const action = isEdit ? "Could not save the changes." : "Could not create the order.";
+  return `${action} ${describeError(error)}`;
 }
 
-export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
-  const [draft, setDraft] = useState(emptyDraft);
+export function OrderFormModal(props: OrderFormModalProps) {
+  const { onSaved, onCancel } = props;
+  const editedOrder = props.mode === "edit" ? props.order : null;
+
+  const [initialDraft] = useState(() => (editedOrder ? draftFromOrder(editedOrder) : emptyDraft()));
+  const [draft, setDraft] = useState(initialDraft);
+  const [status, setStatus] = useState<OrderStatus>(editedOrder?.status ?? "pending");
   const [errors, setErrors] = useState<OrderFormErrors>({});
-  // One key per order being entered. It survives failed attempts and edits, so a retry after an
-  // ambiguous failure (timeout, dropped connection) can never create a second order; a new key
-  // is generated only once this order is confirmed created.
-  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
+  // Create only: one key per form. It survives failed attempts and edits, so a retry after an
+  // ambiguous failure (timeout, dropped connection) can never create a second order. Opening the
+  // form again (a new mount) means a new order, and so a new key.
+  const [idempotencyKey] = useState(() => crypto.randomUUID());
   const createMutation = useCreateOrder();
+  const updateMutation = useUpdateOrder();
+  const saveMutation = editedOrder ? updateMutation : createMutation;
   const [confirmingDiscard, setConfirmingDiscard] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
   const keepEditingRef = useRef<HTMLButtonElement>(null);
+
+  const hasChanges =
+    draftSignature(draft) !== draftSignature(initialDraft) || (editedOrder !== null && status !== editedOrder.status);
 
   // Runs after Modal has called showModal(): an element inside a closed dialog cannot take focus.
   useEffect(() => nameInputRef.current?.focus(), []);
@@ -49,13 +61,13 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
 
   // Cancel, Escape and a backdrop click all end up here.
   function requestClose() {
-    if (createMutation.isPending) return; // closing now would hide whether the order was created
+    if (saveMutation.isPending) return; // closing now would hide whether the save happened
     if (confirmingDiscard) {
       setConfirmingDiscard(false); // Escape on the confirmation means "keep editing"
       return;
     }
-    if (isDraftEmpty(draft)) onCancel();
-    else setConfirmingDiscard(true);
+    if (hasChanges) setConfirmingDiscard(true);
+    else onCancel();
   }
 
   const totalCents = draft.items.reduce((sum, item) => {
@@ -73,8 +85,8 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    // The disabled button stops most double-clicks; the Idempotency-Key handles the rest.
-    if (createMutation.isPending) return;
+    // The disabled button stops most double-clicks; for a create, the Idempotency-Key handles the rest.
+    if (saveMutation.isPending) return;
 
     const parsed = parseOrderDraft(draft);
     if ("errors" in parsed) {
@@ -83,22 +95,20 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
     }
     setErrors({});
 
-    createMutation.mutate(
-      { input: parsed.input, idempotencyKey },
-      {
-        onSuccess: (order) => {
-          setDraft(emptyDraft());
-          setIdempotencyKey(crypto.randomUUID());
-          onCreated(order);
-        },
-      },
-    );
+    if (editedOrder) {
+      updateMutation.mutate(
+        { id: editedOrder.id, input: { ...parsed.input, status, version: editedOrder.version } },
+        { onSuccess: onSaved },
+      );
+    } else {
+      createMutation.mutate({ input: parsed.input, idempotencyKey }, { onSuccess: onSaved });
+    }
   }
 
   return (
-    <Modal labelledBy="new-order-title" onRequestClose={requestClose}>
+    <Modal labelledBy="order-form-title" onRequestClose={requestClose}>
       <form className="order-form" onSubmit={handleSubmit} noValidate>
-        <h2 id="new-order-title">New order</h2>
+        <h2 id="order-form-title">{editedOrder ? `Edit order #${editedOrder.id}` : "New order"}</h2>
 
         <div className="order-form-row">
           <label className="field field--grow">
@@ -124,6 +134,19 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
             />
             {errors.customerEmail && <small className="field-error">{errors.customerEmail}</small>}
           </label>
+
+          {editedOrder && (
+            <label className="field">
+              <span>Status</span>
+              <select value={status} onChange={(event) => setStatus(event.target.value as OrderStatus)}>
+                {ORDER_STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {value[0]!.toUpperCase() + value.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         <fieldset className="order-items">
@@ -191,18 +214,23 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
           </button>
         </fieldset>
 
-        {createMutation.isError && (
+        {saveMutation.isError && (
           <p className="form-error" role="alert">
-            Could not create the order. {describeError(createMutation.error)}
+            {saveErrorMessage(editedOrder !== null, saveMutation.error)}
           </p>
         )}
 
         {confirmingDiscard ? (
           <div className="discard-confirm" role="alert">
             <p>
-              <strong>Discard this order?</strong> What you entered will be lost.
-              {createMutation.isError && isRetryable(createMutation.error) && (
-                <> The last attempt may still have reached the server, so check the list before entering it again.</>
+              <strong>{editedOrder ? "Discard your changes?" : "Discard this order?"}</strong> What you entered will be
+              lost.
+              {saveMutation.isError && isRetryable(saveMutation.error) && (
+                <>
+                  {" "}
+                  The last attempt may still have reached the server, so check the list before{" "}
+                  {editedOrder ? "editing again." : "entering it again."}
+                </>
               )}
             </p>
             <div className="order-form-actions">
@@ -218,11 +246,11 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
           <div className="order-form-footer">
             <strong>Total: {formatMoney(totalCents)}</strong>
             <div className="order-form-actions">
-              <button type="button" onClick={requestClose} disabled={createMutation.isPending}>
+              <button type="button" onClick={requestClose} disabled={saveMutation.isPending}>
                 Cancel
               </button>
-              <button type="submit" className="button-primary" disabled={createMutation.isPending}>
-                {createMutation.isPending ? "Creating…" : "Create order"}
+              <button type="submit" className="button-primary" disabled={saveMutation.isPending}>
+                {submitLabel(editedOrder !== null, saveMutation.isPending)}
               </button>
             </div>
           </div>
@@ -230,4 +258,9 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
       </form>
     </Modal>
   );
+}
+
+function submitLabel(isEdit: boolean, isPending: boolean): string {
+  if (isEdit) return isPending ? "Saving…" : "Save changes";
+  return isPending ? "Creating…" : "Create order";
 }

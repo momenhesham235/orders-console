@@ -1,15 +1,19 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import {
+  fetchOrder,
   ORDER_STATUSES,
+  type OrderDetail,
   type OrderFilters,
   type OrderStatus,
   type OrderSummary,
   type SortDirection,
   type SortField,
 } from "../../api/orders.ts";
+import { describeError } from "../../lib/describeError.ts";
 import { useDebouncedValue } from "../../lib/useDebouncedValue.ts";
-import { CreateOrderForm } from "./CreateOrderForm.tsx";
 import { DeleteOrderDialog } from "./DeleteOrderDialog.tsx";
+import { OrderFormModal } from "./OrderFormModal.tsx";
 import { OrdersTable } from "./OrdersTable.tsx";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -24,6 +28,11 @@ const SORT_OPTIONS = {
 
 type SortOption = keyof typeof SORT_OPTIONS;
 
+interface Toast {
+  message: string;
+  tone: "success" | "error";
+}
+
 interface OrdersPageProps {
   /** UI only: decides whether Delete buttons are shown. The server is what enforces the role. */
   canDelete: boolean;
@@ -34,8 +43,11 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [isCreating, setIsCreating] = useState(false);
+  const [orderToEdit, setOrderToEdit] = useState<OrderDetail | null>(null);
+  const [openingOrderId, setOpeningOrderId] = useState<number | null>(null);
   const [orderToDelete, setOrderToDelete] = useState<OrderSummary | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const queryClient = useQueryClient();
 
   // One request once typing pauses, instead of one per keystroke.
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -52,6 +64,24 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
     setStatus("");
   }
 
+  // The list row only has a summary, so load the full order (items and version) before opening
+  // the form. Fetched fresh every time: the version must be current, or saving would conflict.
+  async function openEditor(order: OrderSummary) {
+    setOpeningOrderId(order.id);
+    try {
+      const detail = await queryClient.fetchQuery({
+        queryKey: ["order", order.id],
+        queryFn: ({ signal }) => fetchOrder(order.id, signal),
+        staleTime: 0,
+      });
+      setOrderToEdit(detail);
+    } catch (error) {
+      setToast({ message: `Could not open order #${order.id}. ${describeError(error)}`, tone: "error" });
+    } finally {
+      setOpeningOrderId(null);
+    }
+  }
+
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS);
@@ -61,12 +91,25 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
   return (
     <section className="orders-page">
       {isCreating && (
-        <CreateOrderForm
-          onCreated={(order) => {
-            setToast(`Order #${order.id} created for ${order.customerName}.`);
+        <OrderFormModal
+          mode="create"
+          onSaved={(order) => {
+            setToast({ message: `Order #${order.id} created for ${order.customerName}.`, tone: "success" });
             setIsCreating(false);
           }}
           onCancel={() => setIsCreating(false)}
+        />
+      )}
+
+      {orderToEdit && (
+        <OrderFormModal
+          mode="edit"
+          order={orderToEdit}
+          onSaved={(order) => {
+            setToast({ message: `Order #${order.id} updated.`, tone: "success" });
+            setOrderToEdit(null);
+          }}
+          onCancel={() => setOrderToEdit(null)}
         />
       )}
 
@@ -74,7 +117,7 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
         <DeleteOrderDialog
           order={orderToDelete}
           onDeleted={(order) => {
-            setToast(`Order #${order.id} deleted.`);
+            setToast({ message: `Order #${order.id} deleted.`, tone: "success" });
             setOrderToDelete(null);
           }}
           onCancel={() => setOrderToDelete(null)}
@@ -83,8 +126,8 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
 
       {/* Fixed-position toast, so it never pushes the list down. */}
       {toast && (
-        <p className="toast" role="status">
-          {toast}
+        <p className={`toast toast--${toast.tone}`} role={toast.tone === "error" ? "alert" : "status"}>
+          {toast.message}
         </p>
       )}
 
@@ -132,6 +175,8 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
         key={JSON.stringify(filters)}
         filters={filters}
         onClearFilters={hasActiveFilters ? clearFilters : undefined}
+        onEditOrder={openEditor}
+        openingOrderId={openingOrderId}
         onDeleteOrder={canDelete ? setOrderToDelete : undefined}
       />
     </section>
