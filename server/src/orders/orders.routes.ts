@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../auth/auth.middleware.js";
-import { deleteOrder, listOrders } from "./orders.repository.js";
-import { encodeCursor, listOrdersQuerySchema } from "./orders.schema.js";
+import { createOrder, deleteOrder, listOrders } from "./orders.repository.js";
+import { createOrderSchema, encodeCursor, idempotencyKeySchema, listOrdersQuerySchema } from "./orders.schema.js";
 
 export const ordersRouter = Router();
 
@@ -21,6 +21,39 @@ ordersRouter.get("/", (req, res) => {
     orders: page.orders,
     nextCursor: page.nextCursor && encodeCursor(page.nextCursor),
   });
+});
+
+// Exactly-once creation: double-clicks, network retries and browser resends all carry the same
+// Idempotency-Key, and every request after the first gets the original order back.
+ordersRouter.post("/", (req, res) => {
+  // Required, so no order can be created on a path that skips the duplicate protection.
+  const idempotencyKey = idempotencyKeySchema.safeParse(req.get("Idempotency-Key"));
+  if (!idempotencyKey.success) {
+    res.status(400).json({ error: "Idempotency-Key header must be a UUID" });
+    return;
+  }
+
+  const input = createOrderSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "Invalid order", details: z.flattenError(input.error).fieldErrors });
+    return;
+  }
+
+  const result = createOrder(input.data, { userId: req.user!.id, idempotencyKey: idempotencyKey.data });
+
+  switch (result.outcome) {
+    case "created":
+      res.status(201).json({ order: result.order });
+      return;
+    case "replayed":
+      res.status(200).set("Idempotent-Replayed", "true").json({ order: result.order });
+      return;
+    case "key-reused":
+      res.status(422).json({
+        error: `This request key was already used for order #${result.orderId} with different details`,
+      });
+      return;
+  }
 });
 
 const orderIdSchema = z.coerce.number().int().positive();

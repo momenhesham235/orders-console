@@ -86,4 +86,20 @@ export const migrations: Migration[] = [
       END;
     `,
   },
+  {
+    id: 4,
+    name: "orders_idempotency",
+    // The duplicate-order guarantee lives here, in a unique index, not in application code:
+    // however many requests race with the same key, the database accepts exactly one row.
+    // Scoped per user so one user's key can never collide with, or replay, another user's order.
+    // Partial: seeded and legacy orders have no key.
+    sql: `
+      ALTER TABLE orders ADD COLUMN created_by INTEGER REFERENCES users (id);
+      ALTER TABLE orders ADD COLUMN idempotency_key TEXT;
+      ALTER TABLE orders ADD COLUMN request_hash TEXT;
+
+      CREATE UNIQUE INDEX idx_orders_idempotency ON orders (created_by, idempotency_key)
+        WHERE idempotency_key IS NOT NULL;
+    `,
+  },
 ];
