@@ -250,7 +250,25 @@ button {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 24px;
+  padding: 24px 24px 0;
+}
+
+/* Stays at the bottom of the scrolling dialog, so Save is always one click away. */
+.order-form-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0 -24px;
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.order-form-sticky .form-error {
+  margin: 0;
 }
 
 .order-form h2 {
@@ -276,18 +294,30 @@ button {
   border-radius: 6px;
 }
 
-.order-items .order-form-row {
+/* One line per item: product | qty | unit price | remove. */
+.order-item-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px 130px auto;
+  align-items: start;
+  gap: 12px;
   width: 100%;
+}
+
+/* On narrow screens the product takes its own line; qty, price and remove share the next. */
+@media (max-width: 560px) {
+  .order-item-row {
+    grid-template-columns: 1fr 1fr auto;
+  }
+
+  .order-item-row > :first-child {
+    grid-column: 1 / -1;
+  }
 }
 
 .order-items legend {
   padding: 0 4px;
   font-size: 0.8125rem;
   color: var(--muted);
-}
-
-.field--narrow {
-  flex: 0 1 130px;
 }
 
 .field input[aria-invalid="true"] {

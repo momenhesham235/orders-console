@@ -152,8 +152,8 @@ export function OrderFormModal(props: OrderFormModalProps) {
         <fieldset className="order-items">
           <legend>Items</legend>
           {draft.items.map((item, index) => (
-            <div key={item.rowId} className="order-form-row">
-              <label className="field field--grow">
+            <div key={item.rowId} className="order-item-row">
+              <label className="field">
                 <span>Product</span>
                 <input
                   value={item.productName}
@@ -166,7 +166,7 @@ export function OrderFormModal(props: OrderFormModalProps) {
                 )}
               </label>
 
-              <label className="field field--narrow">
+              <label className="field">
                 <span>Qty</span>
                 <input
                   inputMode="numeric"
@@ -179,7 +179,7 @@ export function OrderFormModal(props: OrderFormModalProps) {
                 )}
               </label>
 
-              <label className="field field--narrow">
+              <label className="field">
                 <span>Unit price (SAR)</span>
                 <input
                   inputMode="decimal"
@@ -214,47 +214,50 @@ export function OrderFormModal(props: OrderFormModalProps) {
           </button>
         </fieldset>
 
-        {saveMutation.isError && (
-          <p className="form-error" role="alert">
-            {saveErrorMessage(editedOrder !== null, saveMutation.error)}
-          </p>
-        )}
-
-        {confirmingDiscard ? (
-          <div className="discard-confirm" role="alert">
-            <p>
-              <strong>{editedOrder ? "Discard your changes?" : "Discard this order?"}</strong> What you entered will be
-              lost.
-              {saveMutation.isError && isRetryable(saveMutation.error) && (
-                <>
-                  {" "}
-                  The last attempt may still have reached the server, so check the list before{" "}
-                  {editedOrder ? "editing again." : "entering it again."}
-                </>
-              )}
+        {/* Pinned to the bottom of the dialog: Save and the total stay visible however long the item list gets. */}
+        <div className="order-form-sticky">
+          {saveMutation.isError && (
+            <p className="form-error" role="alert">
+              {saveErrorMessage(editedOrder !== null, saveMutation.error)}
             </p>
-            <div className="order-form-actions">
-              <button ref={keepEditingRef} type="button" onClick={() => setConfirmingDiscard(false)}>
-                Keep editing
-              </button>
-              <button type="button" className="button-danger" onClick={onCancel}>
-                Discard
-              </button>
+          )}
+
+          {confirmingDiscard ? (
+            <div className="discard-confirm" role="alert">
+              <p>
+                <strong>{editedOrder ? "Discard your changes?" : "Discard this order?"}</strong> What you entered will be
+                lost.
+                {saveMutation.isError && isRetryable(saveMutation.error) && (
+                  <>
+                    {" "}
+                    The last attempt may still have reached the server, so check the list before{" "}
+                    {editedOrder ? "editing again." : "entering it again."}
+                  </>
+                )}
+              </p>
+              <div className="order-form-actions">
+                <button ref={keepEditingRef} type="button" onClick={() => setConfirmingDiscard(false)}>
+                  Keep editing
+                </button>
+                <button type="button" className="button-danger" onClick={onCancel}>
+                  Discard
+                </button>
+              </div>
             </div>
-          </div>
-        ) : (
-          <div className="order-form-footer">
-            <strong>Total: {formatMoney(totalCents)}</strong>
-            <div className="order-form-actions">
-              <button type="button" onClick={requestClose} disabled={saveMutation.isPending}>
-                Cancel
-              </button>
-              <button type="submit" className="button-primary" disabled={saveMutation.isPending}>
-                {submitLabel(editedOrder !== null, saveMutation.isPending)}
-              </button>
+          ) : (
+            <div className="order-form-footer">
+              <strong>Total: {formatMoney(totalCents)}</strong>
+              <div className="order-form-actions">
+                <button type="button" onClick={requestClose} disabled={saveMutation.isPending}>
+                  Cancel
+                </button>
+                <button type="submit" className="button-primary" disabled={saveMutation.isPending}>
+                  {submitLabel(editedOrder !== null, saveMutation.isPending)}
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </form>
     </Modal>
   );
