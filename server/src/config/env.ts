@@ -6,7 +6,8 @@ if (existsSync(".env")) process.loadEnvFile(".env");
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  PORT: z.coerce.number().int().positive().default(4000),
+  // 0 asks the OS for any free port (used by the tests).
+  PORT: z.coerce.number().int().min(0).max(65535).default(4000),
   DATABASE_PATH: z.string().min(1).default("./data/orders.db"),
   SIMULATED_LATENCY_MS: z.coerce.number().int().min(0).default(0),
   // An empty value (as copied from .env.example) counts as unset.

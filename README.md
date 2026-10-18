@@ -9,7 +9,12 @@ Requires Node.js 20.12+ (developed on Node 24). No database server to install �
 npm install          # installs both workspaces (client + server)
 npm run db:seed      # creates the schema and seeds 50,000 orders + 2 users (~5s, resets existing data)
 npm run dev          # API on http://localhost:4000, UI on http://localhost:5173
+npm test             # R2 proof: duplicate create requests produce exactly one order
 ```
+
+`npm test` seeds a throwaway database, starts **two** API processes on it, and fires the same create request at both at once (2× and 20×), then checks the database holds exactly one order. Two processes rule out the guarantee coming from Node running one request at a time. It also covers sequential retries, a key reused with different details (422), and requests without a valid key (400).
+
+To see the rapid-filter behaviour (R1), run the API with random latency so responses arrive out of order: `SIMULATED_LATENCY_MS=1500 npm run dev` (PowerShell: `$env:SIMULATED_LATENCY_MS=1500; npm run dev`).
 
 `npm run db:seed -- --orders=200000` seeds a different number of orders. The data is deterministic: every run produces the same orders.
 
