@@ -31,6 +31,8 @@ Optional: copy `server/.env.example` to `server/.env` (and `client/.env.example`
 
 ## Screenshots
 
+**Screen recording (2:37):** [docs/video/demo.mp4](docs/video/demo.mp4), a walkthrough of the running console.
+
 Captured from the running app with `SIMULATED_LATENCY_MS=1500` (each list request delayed by a random 0–1.5 s).
 
 **R1: search, filter and sort.** Searching "alharbi" with status Paid and sort "Highest amount" gives 50 rows per page and more on scroll; the filters are kept in the URL (`/orders?q=alharbi&status=paid&sort=highest`), so a refresh or a shared link reopens the same view. Signed out, the app lives at `/login` and returns to that view after sign-in.
