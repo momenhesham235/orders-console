@@ -39,4 +39,16 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_order_items_order_id ON order_items (order_id);
     `,
   },
+  {
+    id: 2,
+    name: "orders_list_indexes",
+    // One index per (filter, sort) shape of the orders list. The trailing id is the keyset
+    // tie-breaker, so "next page after (value, id)" is a single index range scan.
+    sql: `
+      CREATE INDEX idx_orders_created_at        ON orders (created_at, id);
+      CREATE INDEX idx_orders_total             ON orders (total_cents, id);
+      CREATE INDEX idx_orders_status_created_at ON orders (status, created_at, id);
+      CREATE INDEX idx_orders_status_total      ON orders (status, total_cents, id);
+    `,
+  },
 ];
