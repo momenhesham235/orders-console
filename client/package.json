@@ -9,6 +9,8 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.104.4",
+    "@tanstack/react-virtual": "^3.14.21",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"
   },
