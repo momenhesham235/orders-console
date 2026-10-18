@@ -1,6 +1,8 @@
+import { StateMessage } from "./components/StateMessage.tsx";
 import { LoginPage } from "./features/auth/LoginPage.tsx";
 import { useCurrentUser, useLogout } from "./features/auth/useAuth.ts";
 import { OrdersPage } from "./features/orders/OrdersPage.tsx";
+import { describeError } from "./lib/describeError.ts";
 
 export function App() {
   const currentUser = useCurrentUser();
@@ -10,12 +12,19 @@ export function App() {
 
   if (currentUser.isError) {
     return (
-      <div className="app-status" role="alert">
-        <p>Could not reach the server.</p>
-        <button type="button" onClick={() => void currentUser.refetch()}>
-          Retry
-        </button>
-      </div>
+      <main className="app">
+        <StateMessage
+          tone="danger"
+          icon="alert"
+          title="Couldn't reach the server"
+          description={describeError(currentUser.error)}
+          action={
+            <button type="button" className="button-primary" onClick={() => void currentUser.refetch()}>
+              Try again
+            </button>
+          }
+        />
+      </main>
     );
   }
 

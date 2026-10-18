@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { OrderSummary } from "../../api/orders.ts";
 import { Modal } from "../../components/Modal.tsx";
+import { describeError } from "../../lib/describeError.ts";
 import { formatMoney } from "../../lib/format.ts";
 import { parseOrderDraft, priceToCents, type ItemDraft, type OrderDraft, type OrderFormErrors } from "./orderForm.schema.ts";
 import { isRetryable, useCreateOrder } from "./useCreateOrder.ts";
@@ -192,7 +193,7 @@ export function CreateOrderForm({ onCreated, onCancel }: CreateOrderFormProps) {
 
         {createMutation.isError && (
           <p className="form-error" role="alert">
-            Could not create the order: {createMutation.error.message}
+            Could not create the order. {describeError(createMutation.error)}
           </p>
         )}
 

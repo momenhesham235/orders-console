@@ -38,6 +38,13 @@ export function OrdersPage() {
     return { search: search || undefined, status: status || undefined, sort, direction };
   }, [search, status, sortOption]);
 
+  const hasActiveFilters = Boolean(filters.search || filters.status);
+
+  function clearFilters() {
+    setSearchInput("");
+    setStatus("");
+  }
+
   useEffect(() => {
     if (!createdOrder) return;
     const timer = setTimeout(() => setCreatedOrder(null), TOAST_DURATION_MS);
@@ -103,7 +110,11 @@ export function OrdersPage() {
       </div>
 
       {/* Remount per filter set: scroll position resets, and the previous query loses its observer and is cancelled. */}
-      <OrdersTable key={JSON.stringify(filters)} filters={filters} />
+      <OrdersTable
+        key={JSON.stringify(filters)}
+        filters={filters}
+        onClearFilters={hasActiveFilters ? clearFilters : undefined}
+      />
     </section>
   );
 }

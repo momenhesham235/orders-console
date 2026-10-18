@@ -1,6 +1,8 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
 import type { OrderFilters } from "../../api/orders.ts";
+import { StateMessage } from "../../components/StateMessage.tsx";
+import { describeError } from "../../lib/describeError.ts";
 import { formatDateTime, formatMoney } from "../../lib/format.ts";
 import { useOrders } from "./useOrders.ts";
 
@@ -8,9 +10,11 @@ const ROW_HEIGHT = 48;
 
 interface OrdersTableProps {
   filters: OrderFilters;
+  /** Present only while a search or status filter is active. */
+  onClearFilters?: () => void;
 }
 
-export function OrdersTable({ filters }: OrdersTableProps) {
+export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
   const {
     data,
     error,
@@ -48,16 +52,36 @@ export function OrdersTable({ filters }: OrdersTableProps) {
 
   if (isError && rows.length === 0) {
     return (
-      <div className="table-message table-message--error" role="alert">
-        <p>Could not load orders: {error.message}</p>
-        <button type="button" onClick={() => void refetch()}>
-          Retry
-        </button>
-      </div>
+      <StateMessage
+        tone="danger"
+        icon="alert"
+        title="Couldn't load orders"
+        description={describeError(error)}
+        action={
+          <button type="button" className="button-primary" onClick={() => void refetch()}>
+            Try again
+          </button>
+        }
+      />
     );
   }
 
-  if (rows.length === 0) return <p className="table-message">No orders match these filters.</p>;
+  if (rows.length === 0) {
+    return onClearFilters ? (
+      <StateMessage
+        icon="search"
+        title="No orders match your filters"
+        description="Try a different search term or status."
+        action={
+          <button type="button" onClick={onClearFilters}>
+            Clear filters
+          </button>
+        }
+      />
+    ) : (
+      <StateMessage icon="inbox" title="No orders yet" description="Orders you create will appear here." />
+    );
+  }
 
   return (
     <>

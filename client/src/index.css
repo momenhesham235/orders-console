@@ -398,17 +398,68 @@ button {
   text-overflow: ellipsis;
 }
 
-.table-message {
-  padding: 48px 16px;
-  text-align: center;
-  color: var(--muted);
+/* Loading, empty and error panels take the table's place at the table's size, so nothing jumps. */
+.table-message,
+.state-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 220px);
+  min-height: 320px;
+  margin: 0;
+  padding: 24px 16px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
+  color: var(--muted);
+  text-align: center;
 }
 
-.table-message--error {
+.state-message {
+  gap: 8px;
+}
+
+.state-message-icon {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 4px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.state-message h2 {
+  margin: 0;
+  font-size: 1.0625rem;
+  color: var(--text);
+}
+
+.state-message p {
+  max-width: 420px;
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+}
+
+.state-message--danger .state-message-icon {
   color: var(--danger);
+}
+
+.state-message code {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--background);
+  color: var(--text);
+  word-break: break-all;
+}
+
+.button-link {
+  display: inline-block;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  text-decoration: none;
 }
 
 .table-footer {
