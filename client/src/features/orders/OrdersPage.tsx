@@ -7,26 +7,16 @@ import {
   type OrderFilters,
   type OrderStatus,
   type OrderSummary,
-  type SortDirection,
-  type SortField,
 } from "../../api/orders.ts";
 import { describeError } from "../../lib/describeError.ts";
 import { useDebouncedValue } from "../../lib/useDebouncedValue.ts";
 import { DeleteOrderDialog } from "./DeleteOrderDialog.tsx";
+import { readFilterParams, SORT_OPTIONS, writeFilterParams, type SortOption } from "./filterParams.ts";
 import { OrderFormModal } from "./OrderFormModal.tsx";
 import { OrdersTable } from "./OrdersTable.tsx";
 
 const SEARCH_DEBOUNCE_MS = 300;
 const TOAST_DURATION_MS = 5_000;
-
-const SORT_OPTIONS = {
-  newest: { label: "Newest first", sort: "createdAt", direction: "desc" },
-  oldest: { label: "Oldest first", sort: "createdAt", direction: "asc" },
-  highest: { label: "Highest amount", sort: "total", direction: "desc" },
-  lowest: { label: "Lowest amount", sort: "total", direction: "asc" },
-} satisfies Record<string, { label: string; sort: SortField; direction: SortDirection }>;
-
-type SortOption = keyof typeof SORT_OPTIONS;
 
 interface Toast {
   message: string;
@@ -39,9 +29,11 @@ interface OrdersPageProps {
 }
 
 export function OrdersPage({ canDelete }: OrdersPageProps) {
-  const [searchInput, setSearchInput] = useState("");
-  const [status, setStatus] = useState<OrderStatus | "">("");
-  const [sortOption, setSortOption] = useState<SortOption>("newest");
+  // Start from the address bar, so a refresh or a shared link reopens the same view.
+  const [initialParams] = useState(readFilterParams);
+  const [searchInput, setSearchInput] = useState(initialParams.search);
+  const [status, setStatus] = useState<OrderStatus | "">(initialParams.status);
+  const [sortOption, setSortOption] = useState<SortOption>(initialParams.sort);
   const [isCreating, setIsCreating] = useState(false);
   const [orderToEdit, setOrderToEdit] = useState<OrderDetail | null>(null);
   const [openingOrderId, setOpeningOrderId] = useState<number | null>(null);
@@ -56,6 +48,9 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
     const { sort, direction } = SORT_OPTIONS[sortOption];
     return { search: search || undefined, status: status || undefined, sort, direction };
   }, [search, status, sortOption]);
+
+  // The debounced search, not every keystroke, goes into the URL.
+  useEffect(() => writeFilterParams({ search, status, sort: sortOption }), [search, status, sortOption]);
 
   const hasActiveFilters = Boolean(filters.search || filters.status);
 
