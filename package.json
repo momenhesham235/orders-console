@@ -1,0 +1,25 @@
+{
+  "name": "orders-console",
+  "private": true,
+  "description": "Orders Console — React front end, Node/Express back end, SQLite database.",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "dev": "concurrently -k -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\"",
+    "build": "npm run build -w server && npm run build -w client",
+    "typecheck": "npm run typecheck --workspaces",
+    "db:migrate": "npm run db:migrate -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  },
+  "allowScripts": {
+    "better-sqlite3@13.0.3": false,
+    "esbuild@0.28.2": true
+  }
+}

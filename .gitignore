@@ -147,3 +147,12 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# orders-console: local SQLite database files
+server/data/
+*.db
+*.db-wal
+*.db-shm
+
+# Assignment brief (not part of the project)
+SARH_FullStack_Take-Home_Test_v2.pdf
