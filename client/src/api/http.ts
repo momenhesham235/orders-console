@@ -29,6 +29,10 @@ export function getJson<T>(path: string, params: QueryParams = {}, signal?: Abor
   return request<T>(queryString ? `${path}?${queryString}` : path, { signal });
 }
 
+export function deleteRequest(path: string): Promise<void> {
+  return request<void>(path, { method: "DELETE" });
+}
+
 export function postJson<T>(
   path: string,
   body?: unknown,

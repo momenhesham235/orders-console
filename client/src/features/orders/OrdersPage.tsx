@@ -9,6 +9,7 @@ import {
 } from "../../api/orders.ts";
 import { useDebouncedValue } from "../../lib/useDebouncedValue.ts";
 import { CreateOrderForm } from "./CreateOrderForm.tsx";
+import { DeleteOrderDialog } from "./DeleteOrderDialog.tsx";
 import { OrdersTable } from "./OrdersTable.tsx";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -23,12 +24,18 @@ const SORT_OPTIONS = {
 
 type SortOption = keyof typeof SORT_OPTIONS;
 
-export function OrdersPage() {
+interface OrdersPageProps {
+  /** UI only: decides whether Delete buttons are shown. The server is what enforces the role. */
+  canDelete: boolean;
+}
+
+export function OrdersPage({ canDelete }: OrdersPageProps) {
   const [searchInput, setSearchInput] = useState("");
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
   const [isCreating, setIsCreating] = useState(false);
-  const [createdOrder, setCreatedOrder] = useState<OrderSummary | null>(null);
+  const [orderToDelete, setOrderToDelete] = useState<OrderSummary | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
 
   // One request once typing pauses, instead of one per keystroke.
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -46,27 +53,38 @@ export function OrdersPage() {
   }
 
   useEffect(() => {
-    if (!createdOrder) return;
-    const timer = setTimeout(() => setCreatedOrder(null), TOAST_DURATION_MS);
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), TOAST_DURATION_MS);
     return () => clearTimeout(timer);
-  }, [createdOrder]);
+  }, [toast]);
 
   return (
     <section className="orders-page">
       {isCreating && (
         <CreateOrderForm
           onCreated={(order) => {
-            setCreatedOrder(order);
+            setToast(`Order #${order.id} created for ${order.customerName}.`);
             setIsCreating(false);
           }}
           onCancel={() => setIsCreating(false)}
         />
       )}
 
+      {orderToDelete && (
+        <DeleteOrderDialog
+          order={orderToDelete}
+          onDeleted={(order) => {
+            setToast(`Order #${order.id} deleted.`);
+            setOrderToDelete(null);
+          }}
+          onCancel={() => setOrderToDelete(null)}
+        />
+      )}
+
       {/* Fixed-position toast, so it never pushes the list down. */}
-      {createdOrder && (
+      {toast && (
         <p className="toast" role="status">
-          Order #{createdOrder.id} created for {createdOrder.customerName}.
+          {toast}
         </p>
       )}
 
@@ -114,6 +132,7 @@ export function OrdersPage() {
         key={JSON.stringify(filters)}
         filters={filters}
         onClearFilters={hasActiveFilters ? clearFilters : undefined}
+        onDeleteOrder={canDelete ? setOrderToDelete : undefined}
       />
     </section>
   );

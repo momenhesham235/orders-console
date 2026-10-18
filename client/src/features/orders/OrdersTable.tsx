@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef } from "react";
-import type { OrderFilters } from "../../api/orders.ts";
+import type { OrderFilters, OrderSummary } from "../../api/orders.ts";
 import { StateMessage } from "../../components/StateMessage.tsx";
 import { describeError } from "../../lib/describeError.ts";
 import { formatDateTime, formatMoney } from "../../lib/format.ts";
@@ -12,9 +12,11 @@ interface OrdersTableProps {
   filters: OrderFilters;
   /** Present only while a search or status filter is active. */
   onClearFilters?: () => void;
+  /** Present only for admins. Hiding the button is cosmetic: the server enforces the role. */
+  onDeleteOrder?: (order: OrderSummary) => void;
 }
 
-export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
+export function OrdersTable({ filters, onClearFilters, onDeleteOrder }: OrdersTableProps) {
   const {
     data,
     error,
@@ -66,6 +68,9 @@ export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
     );
   }
 
+  // Every loaded row was deleted but more pages exist: the effect above is fetching the next one.
+  if (rows.length === 0 && hasNextPage) return <p className="table-message">Loading orders…</p>;
+
   if (rows.length === 0) {
     return onClearFilters ? (
       <StateMessage
@@ -85,7 +90,10 @@ export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
 
   return (
     <>
-      <div ref={scrollRef} className="orders-scroll" role="table" aria-label="Orders" aria-rowcount={hasNextPage ? -1 : rows.length}>
+      <div
+        ref={scrollRef}
+        className={onDeleteOrder ? "orders-scroll orders-scroll--with-actions" : "orders-scroll"}
+        role="table" aria-label="Orders" aria-rowcount={hasNextPage ? -1 : rows.length}>
         <div role="row" className="orders-row orders-row--header">
           <span role="columnheader">#</span>
           <span role="columnheader">Customer</span>
@@ -94,6 +102,11 @@ export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
           <span role="columnheader" className="numeric">Items</span>
           <span role="columnheader" className="numeric">Total</span>
           <span role="columnheader">Created</span>
+          {onDeleteOrder && (
+            <span role="columnheader">
+              <span className="visually-hidden">Actions</span>
+            </span>
+          )}
         </div>
 
         <div className="orders-body" style={{ height: virtualizer.getTotalSize() }}>
@@ -129,6 +142,18 @@ export function OrdersTable({ filters, onClearFilters }: OrdersTableProps) {
                 <span role="cell" className="numeric">{order.itemCount}</span>
                 <span role="cell" className="numeric">{formatMoney(order.totalCents)}</span>
                 <span role="cell" className="muted">{formatDateTime(order.createdAt)}</span>
+                {onDeleteOrder && (
+                  <span role="cell">
+                    <button
+                      type="button"
+                      className="row-action row-action--danger"
+                      aria-label={`Delete order ${order.id}`}
+                      onClick={() => onDeleteOrder(order)}
+                    >
+                      Delete
+                    </button>
+                  </span>
+                )}
               </div>
             );
           })}

@@ -72,7 +72,7 @@ Every problem I found in the `auth.ts` / `routes.ts` snippet from the brief, and
 | 2 | Secret hard-coded in source | Anyone who has the repo (or the brief) can sign valid tokens. | `JWT_SECRET` from the environment, at least 32 characters, required in production. In development an unset secret becomes a random one per run, so there is no default to leak. |
 | 3 | Token accepted from `?token=` | URLs are written to server and proxy logs, browser history and `Referer` headers. | The token is read from an httpOnly cookie only. |
 | 4 | No expiry | `jwt.sign` sets no `expiresIn`, and `decode` ignores `exp` anyway: a leaked token works forever. | Sessions expire after `SESSION_TTL_HOURS` (default 8), enforced by `verify`. |
-| 5 | Admin check only in the React `AdminOnly` component | Hiding a button is cosmetic; any agent can call `DELETE /orders/:id` with curl. | `requireRole("admin")` on the server ([auth.middleware.ts](server/src/auth/auth.middleware.ts)). |
+| 5 | Admin check only in the React `AdminOnly` component | Hiding a button is cosmetic; any agent can call `DELETE /orders/:id` with curl. | `requireRole("admin")` on the server ([auth.middleware.ts](server/src/auth/auth.middleware.ts)). The UI still shows the Delete button only to admins, but only for convenience. If the server answers 403 anyway (for example, the role changed after the page loaded), the dialog says so and the app re-reads the role. |
 | 6 | Plain-text passwords, compared inside the query | One database leak exposes every password. | Salted scrypt hashes with a constant-time comparison ([password.ts](server/src/auth/password.ts)). |
 | 7 | Login body not validated | `email` can arrive as an object, such as `{"not": ""}` for Prisma or `{"$ne": null}` for MongoDB, and log in without a password. | zod accepts only strings: email format, length limits, 400 otherwise. |
 | 8 | No brute-force protection | Unlimited password guesses. | 10 failed attempts per 15 minutes per IP, then 429 ([auth.routes.ts](server/src/auth/auth.routes.ts)). |
@@ -80,6 +80,8 @@ Every problem I found in the `auth.ts` / `routes.ts` snippet from the brief, and
 | 10 | Delete route trusts `req.params.id` and always answers `ok` | `DELETE /orders/abc` reaches the ORM; a missing order still reports success; in Express 4 a rejected `await` leaves the request hanging. | Id validated (400), 404 when nothing was deleted, Express 5 forwards async errors to the error handler. |
 | 11 | `req.user = payload` is untyped | Whatever the token decodes to flows through the app unchecked. | A typed `Request.user` ([express.d.ts](server/src/types/express.d.ts)), set only from a database row. |
 | 12 | Each route must remember to add `requireAuth` | One forgotten middleware exposes a route. | `ordersRouter.use(requireAuth)` protects every orders route, including future ones. |
+
+Deleting one order is an admin decision kept separate from the bulk delete in the product question below. It is a hard delete because that is what the original route did; in a real production system I would make it a soft delete or archive with an audit entry.
 
 While fixing #6 I also closed a timing leak: hashing a password takes ~50 ms, so answering instantly for unknown emails would reveal which emails have accounts. Unknown emails are compared against a dummy hash, so both paths take the same time and return the same message.
 
@@ -97,7 +99,6 @@ If she cannot answer, I would not build an irreversible bulk delete. Instead I w
 ## What I skipped and why
 
 - **Optional tasks O1 (slow stats API) and O2 (optimistic create).** The brief says doing one badly costs more than skipping it, so I spent the time on R1 and R2 correctness. After a create, the list refetches rather than updating optimistically.
-- **Delete button in the UI.** `DELETE /api/orders/:id` exists and is admin-only (it is the fixed version of the contractor's route), but there is no button. It was not required, and the product question above argues against casual hard deletes.
 - **Automated tests beyond R2.** `npm test` covers R2 only. During development I verified the rest with throwaway scripts that are not committed: every page of 5 filter/sort combinations and 11 search cases against an independent reference, and 26 auth checks (forged, unsigned, expired and wrong-algorithm tokens, `?token=`, role checks, the rate limit). The rapid-filter behaviour has no automated client test; check it by hand with `SIMULATED_LATENCY_MS`. These are the first tests I would add.
 - **Shared types between client and server.** The API types, the status list and the order validation rules are duplicated in `client/` and `server/`. A shared workspace package would stop them drifting.
 - **Total result count.** The list shows "N orders loaded" instead of "N of M", which avoids a `COUNT(*)` on every filter change.

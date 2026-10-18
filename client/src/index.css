@@ -308,6 +308,30 @@ button {
   gap: 8px;
 }
 
+.confirm-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 24px;
+}
+
+.confirm-dialog h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  font-size: 0.9375rem;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
 .discard-confirm {
   display: flex;
   flex-wrap: wrap;
@@ -353,6 +377,40 @@ button {
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   font-size: 0.875rem;
+}
+
+.orders-scroll--with-actions .orders-row {
+  grid-template-columns: 72px minmax(140px, 1.2fr) minmax(200px, 1.8fr) 110px 64px 130px 170px 72px;
+  min-width: 1024px;
+}
+
+.orders-scroll--with-actions .orders-body {
+  min-width: 1024px;
+}
+
+.row-action {
+  padding: 3px 10px;
+  font-size: 0.8125rem;
+}
+
+.row-action--danger {
+  border-color: #ffcecb;
+  background: transparent;
+  color: var(--danger);
+}
+
+.row-action--danger:hover,
+.row-action--danger:focus-visible {
+  background: #ffebe9;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .orders-row--header {

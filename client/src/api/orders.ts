@@ -1,4 +1,4 @@
-import { getJson, postJson } from "./http.ts";
+import { deleteRequest, getJson, postJson } from "./http.ts";
 
 // Mirrors the server's API contract (server/src/orders).
 export const ORDER_STATUSES = ["pending", "paid", "shipped", "delivered", "cancelled"] as const;
@@ -51,4 +51,9 @@ export async function createOrder(input: CreateOrderInput, idempotencyKey: strin
     signal: AbortSignal.timeout(CREATE_TIMEOUT_MS),
   });
   return order;
+}
+
+/** Admin only: the server answers 403 for anyone else, whatever the UI shows. */
+export function deleteOrder(id: number): Promise<void> {
+  return deleteRequest(`/api/orders/${id}`);
 }

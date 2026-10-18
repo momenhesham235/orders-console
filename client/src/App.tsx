@@ -43,7 +43,7 @@ export function App() {
           </button>
         </div>
       </header>
-      <OrdersPage />
+      <OrdersPage canDelete={user.role === "admin"} />
     </main>
   );
 }
