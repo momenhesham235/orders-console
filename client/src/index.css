@@ -35,9 +35,89 @@ button {
   padding: 24px 16px;
 }
 
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
 .app-header h1 {
-  margin: 0 0 16px;
+  margin: 0;
   font-size: 1.5rem;
+}
+
+.session {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+}
+
+.role {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #ddf4ff;
+  color: #0550ae;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.app-status {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* Login */
+
+.login {
+  display: grid;
+  place-items: center;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.login-card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 360px;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+}
+
+.login-card h1 {
+  margin: 0;
+  font-size: 1.375rem;
+}
+
+.login-card p {
+  margin: 0;
+}
+
+.form-error {
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.button-primary {
+  padding: 9px 12px;
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.button-primary:disabled {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* Toolbar */
