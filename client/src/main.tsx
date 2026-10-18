@@ -3,14 +3,14 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { ApiError } from "./api/http.ts";
 import { App } from "./App.tsx";
-import { CURRENT_USER_KEY } from "./features/auth/useAuth.ts";
+import { markSignedOut } from "./features/auth/useAuth.ts";
 import "./index.css";
 
 const queryClient: QueryClient = new QueryClient({
   queryCache: new QueryCache({
     // A 401 on any data query means the session expired or was revoked: back to the login screen.
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) queryClient.setQueryData(CURRENT_USER_KEY, null);
+      if (error instanceof ApiError && error.status === 401) markSignedOut(queryClient);
     },
   }),
   defaultOptions: {

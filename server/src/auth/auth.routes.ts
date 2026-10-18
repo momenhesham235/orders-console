@@ -16,11 +16,24 @@ const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
-const cookieOptions: CookieOptions = {
+const sessionCookieOptions: CookieOptions = {
   httpOnly: true, // unreadable from JavaScript, so an XSS payload cannot steal it
   sameSite: "strict", // not sent on cross-site requests, which blocks CSRF
   secure: env.NODE_ENV === "production",
   path: "/api",
+};
+
+// A UI hint, not a credential: it only tells the client whether asking /api/auth/me is worth
+// a request, so the login screen loads with no API call at all. The server never reads it;
+// every protected route verifies the real session cookie and the role. Anyone can forge it,
+// and the worst outcome is one /me request answered with 401.
+const SESSION_HINT_COOKIE = "orders_signed_in";
+
+const sessionHintCookieOptions: CookieOptions = {
+  httpOnly: false, // the client must be able to read it
+  sameSite: "strict",
+  secure: env.NODE_ENV === "production",
+  path: "/", // visible to the page, unlike the /api-scoped session cookie
 };
 
 // Failed attempts only, per client IP. Behind a reverse proxy, "trust proxy" must be set
@@ -52,12 +65,16 @@ authRouter.post("/login", loginRateLimit, async (req, res) => {
     return;
   }
 
-  res.cookie(SESSION_COOKIE, signSessionToken(user.id), { ...cookieOptions, maxAge: SESSION_TTL_MS });
+  res.cookie(SESSION_COOKIE, signSessionToken(user.id), { ...sessionCookieOptions, maxAge: SESSION_TTL_MS });
+  // Same lifetime as the session. That cannot keep them in sync on its own (the server can
+  // revoke a session earlier), which is why the client still confirms with /me.
+  res.cookie(SESSION_HINT_COOKIE, "1", { ...sessionHintCookieOptions, maxAge: SESSION_TTL_MS });
   res.json({ user: { id: user.id, email: user.email, role: user.role } });
 });
 
 authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(SESSION_COOKIE, cookieOptions);
+  res.clearCookie(SESSION_COOKIE, sessionCookieOptions);
+  res.clearCookie(SESSION_HINT_COOKIE, sessionHintCookieOptions);
   res.status(204).end();
 });
 

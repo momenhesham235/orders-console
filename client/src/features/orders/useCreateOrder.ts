@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "../../api/http.ts";
 import { createOrder, type CreateOrderInput } from "../../api/orders.ts";
-import { CURRENT_USER_KEY } from "../auth/useAuth.ts";
+import { markSignedOut } from "../auth/useAuth.ts";
 
 // Network failures, timeouts and 5xx may or may not have reached the server; a 4xx is a definite answer.
 export function isRetryable(error: unknown): boolean {
@@ -19,7 +19,7 @@ export function useCreateOrder() {
     retry: (failureCount, error) => isRetryable(error) && failureCount < 2,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["orders"] }),
     onError: (error) => {
-      if (error instanceof ApiError && error.status === 401) queryClient.setQueryData(CURRENT_USER_KEY, null);
+      if (error instanceof ApiError && error.status === 401) markSignedOut(queryClient);
     },
   });
 }

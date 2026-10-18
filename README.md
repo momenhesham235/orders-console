@@ -87,6 +87,8 @@ While fixing #6 I also closed a timing leak: hashing a password takes ~50 ms, so
 
 The session token is in an httpOnly, `SameSite=Strict` cookie scoped to `/api` (and `Secure` in production). Page JavaScript cannot read it, so an XSS bug cannot steal the token and replay it from elsewhere, and other sites cannot make the browser send it (CSRF). It does not protect against XSS itself: a script injected into our page can still call the API as the user while the tab is open, so that has to be prevented at the source (React's escaping, no `dangerouslySetInnerHTML`, a Content Security Policy).
 
+A second, readable cookie, `orders_signed_in=1`, is set on login and cleared on logout. It is not a credential: the server never reads it, and every protected route still checks the real session and role. It only lets the login screen load without an API call. When it is present, the app confirms the session with `/api/auth/me`; if the server has already ended the session, that one request returns 401, the hint is removed and the login screen is shown. Forging it achieves nothing beyond that one 401.
+
 ## Product question: "Delete all cancelled orders"
 
 Before building it I would ask why. What problem do cancelled orders cause: clutter in the list, wrong reports, storage? Who still needs them: finance for refunds and chargebacks, support when a customer asks "why was I charged?", auditors? Is there a legal retention period? Does "all" include an order cancelled ten minutes ago that may still be disputed?
