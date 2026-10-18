@@ -38,7 +38,12 @@ export function App() {
         <div className="session">
           <span className="muted">{user.email}</span>
           <span className="role">{user.role}</span>
-          <button type="button" onClick={() => logoutMutation.mutate()} disabled={logoutMutation.isPending}>
+          <button
+            type="button"
+            className="button-danger-outline"
+            onClick={() => logoutMutation.mutate()}
+            disabled={logoutMutation.isPending}
+          >
             Sign out
           </button>
         </div>

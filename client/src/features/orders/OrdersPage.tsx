@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   fetchOrder,
   ORDER_STATUSES,
@@ -40,6 +40,7 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
   const [orderToDelete, setOrderToDelete] = useState<OrderSummary | null>(null);
   const [toast, setToast] = useState<Toast | null>(null);
   const queryClient = useQueryClient();
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // One request once typing pauses, instead of one per keystroke.
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -53,10 +54,13 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
   useEffect(() => writeFilterParams({ search, status, sort: sortOption }), [search, status, sortOption]);
 
   const hasActiveFilters = Boolean(filters.search || filters.status);
+  // From the inputs, not the debounced filters, so the button appears as soon as you type.
+  const hasFilterInput = Boolean(searchInput.trim() || status);
 
   function clearFilters() {
     setSearchInput("");
     setStatus("");
+    searchInputRef.current?.focus();
   }
 
   // The list row only has a summary, so load the full order (items and version) before opening
@@ -130,6 +134,7 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
         <label className="field field--grow">
           <span>Search</span>
           <input
+            ref={searchInputRef}
             type="search"
             placeholder="Customer name or email"
             value={searchInput}
@@ -159,6 +164,16 @@ export function OrdersPage({ canDelete }: OrdersPageProps) {
             ))}
           </select>
         </label>
+
+        {hasFilterInput && (
+          <button type="button" className="toolbar-clear" onClick={clearFilters}>
+            <svg className="button-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 5h18l-7 8v6l-4 2v-8z" />
+              <path d="m16 16 5 5m0-5-5 5" />
+            </svg>
+            Clear filters
+          </button>
+        )}
 
         <button type="button" className="button-primary toolbar-action" onClick={() => setIsCreating(true)}>
           New order

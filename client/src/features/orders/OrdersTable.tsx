@@ -156,7 +156,7 @@ export function OrdersTable({ filters, onClearFilters, onEditOrder, openingOrder
                   {onDeleteOrder && (
                     <button
                       type="button"
-                      className="row-action row-action--danger"
+                      className="row-action button-danger-outline"
                       aria-label={`Delete order ${order.id}`}
                       onClick={() => onDeleteOrder(order)}
                     >

@@ -197,6 +197,33 @@ button {
   color: var(--text);
 }
 
+.toolbar-clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-end;
+  padding: 8px 12px;
+  border-color: #b6e3ff;
+  background: #ddf4ff;
+  color: #0550ae;
+}
+
+.toolbar-clear:hover,
+.toolbar-clear:focus-visible {
+  background: #c8ecff;
+}
+
+.button-icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 .toolbar-action {
   align-self: flex-end;
   margin-left: auto;
@@ -437,14 +464,15 @@ button {
   font-size: 0.8125rem;
 }
 
-.row-action--danger {
+/* Destructive or exit actions that should not shout: red text and border, red tint on hover. */
+.button-danger-outline {
   border-color: #ffcecb;
   background: transparent;
   color: var(--danger);
 }
 
-.row-action--danger:hover,
-.row-action--danger:focus-visible {
+.button-danger-outline:hover:not(:disabled),
+.button-danger-outline:focus-visible {
   background: #ffebe9;
 }
 
