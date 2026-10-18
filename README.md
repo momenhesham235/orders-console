@@ -70,3 +70,22 @@ While fixing #6 I also closed a timing leak: hashing a password takes ~50 ms, so
 ### Where the token lives on the client
 
 The session token is in an httpOnly, `SameSite=Strict` cookie scoped to `/api` (and `Secure` in production). Page JavaScript cannot read it, so an XSS bug cannot steal the token and replay it from elsewhere, and other sites cannot make the browser send it (CSRF). It does not protect against XSS itself: a script injected into our page can still call the API as the user while the tab is open, so that has to be prevented at the source (React's escaping, no `dangerouslySetInnerHTML`, a Content Security Policy).
+
+## Product question: "Delete all cancelled orders"
+
+Before building it I would ask why. What problem do cancelled orders cause: clutter in the list, wrong reports, storage? Who still needs them: finance for refunds and chargebacks, support when a customer asks "why was I charged?", auditors? Is there a legal retention period? Does "all" include an order cancelled ten minutes ago that may still be disputed?
+If she cannot answer, I would not build an irreversible bulk delete. Instead I would hide cancelled orders from the default view (the status filter already exists), and if storage really is the concern, archive orders cancelled more than N months ago. That would be admin-only, logged and reversible.
+
+## What I skipped and why
+
+- **Optional tasks O1 (slow stats API) and O2 (optimistic create).** The brief says doing one badly costs more than skipping it, so I spent the time on R1 and R2 correctness. After a create, the list refetches rather than updating optimistically.
+- **Delete button in the UI.** `DELETE /api/orders/:id` exists and is admin-only (it is the fixed version of the contractor's route), but there is no button. It was not required, and the product question above argues against casual hard deletes.
+- **Automated tests beyond R2.** `npm test` covers R2 only. During development I verified the rest with throwaway scripts that are not committed: every page of 5 filter/sort combinations and 11 search cases against an independent reference, and 26 auth checks (forged, unsigned, expired and wrong-algorithm tokens, `?token=`, role checks, the rate limit). The rapid-filter behaviour has no automated client test; check it by hand with `SIMULATED_LATENCY_MS`. These are the first tests I would add.
+- **Shared types between client and server.** The API types, the status list and the order validation rules are duplicated in `client/` and `server/`. A shared workspace package would stop them drifting.
+- **Total result count.** The list shows "N orders loaded" instead of "N of M", which avoids a `COUNT(*)` on every filter change.
+- **Production hardening.**
+  - The login rate limiter is in memory, per process.
+  - Behind a reverse proxy, `trust proxy` must be set.
+  - CSRF protection relies on `SameSite=Strict` cookies and JSON-only endpoints, with no CSRF token.
+  - Idempotency keys never expire.
+- **Order details and status changes.** These were not in the brief.
