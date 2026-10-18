@@ -34,6 +34,7 @@ Optional: copy `server/.env.example` to `server/.env` (and `client/.env.example`
 ```
 client/               React 18+ · Vite · TypeScript
   src/api/            HTTP calls to the back end
+  src/components/     Shared UI components (Modal)
   src/features/       Screens and their hooks (auth, orders)
   src/lib/            Small shared helpers
 server/               Node · Express · TypeScript

@@ -1,15 +1,18 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ORDER_STATUSES,
   type OrderFilters,
   type OrderStatus,
+  type OrderSummary,
   type SortDirection,
   type SortField,
 } from "../../api/orders.ts";
 import { useDebouncedValue } from "../../lib/useDebouncedValue.ts";
+import { CreateOrderForm } from "./CreateOrderForm.tsx";
 import { OrdersTable } from "./OrdersTable.tsx";
 
 const SEARCH_DEBOUNCE_MS = 300;
+const TOAST_DURATION_MS = 5_000;
 
 const SORT_OPTIONS = {
   newest: { label: "Newest first", sort: "createdAt", direction: "desc" },
@@ -24,6 +27,8 @@ export function OrdersPage() {
   const [searchInput, setSearchInput] = useState("");
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [sortOption, setSortOption] = useState<SortOption>("newest");
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdOrder, setCreatedOrder] = useState<OrderSummary | null>(null);
 
   // One request once typing pauses, instead of one per keystroke.
   const search = useDebouncedValue(searchInput.trim(), SEARCH_DEBOUNCE_MS);
@@ -33,8 +38,31 @@ export function OrdersPage() {
     return { search: search || undefined, status: status || undefined, sort, direction };
   }, [search, status, sortOption]);
 
+  useEffect(() => {
+    if (!createdOrder) return;
+    const timer = setTimeout(() => setCreatedOrder(null), TOAST_DURATION_MS);
+    return () => clearTimeout(timer);
+  }, [createdOrder]);
+
   return (
     <section className="orders-page">
+      {isCreating && (
+        <CreateOrderForm
+          onCreated={(order) => {
+            setCreatedOrder(order);
+            setIsCreating(false);
+          }}
+          onCancel={() => setIsCreating(false)}
+        />
+      )}
+
+      {/* Fixed-position toast, so it never pushes the list down. */}
+      {createdOrder && (
+        <p className="toast" role="status">
+          Order #{createdOrder.id} created for {createdOrder.customerName}.
+        </p>
+      )}
+
       <div className="toolbar">
         <label className="field field--grow">
           <span>Search</span>
@@ -68,6 +96,10 @@ export function OrdersPage() {
             ))}
           </select>
         </label>
+
+        <button type="button" className="button-primary toolbar-action" onClick={() => setIsCreating(true)}>
+          New order
+        </button>
       </div>
 
       {/* Remount per filter set: scroll position resets, and the previous query loses its observer and is cancelled. */}

@@ -29,10 +29,15 @@ export function getJson<T>(path: string, params: QueryParams = {}, signal?: Abor
   return request<T>(queryString ? `${path}?${queryString}` : path, { signal });
 }
 
-export function postJson<T>(path: string, body?: unknown): Promise<T> {
+export function postJson<T>(
+  path: string,
+  body?: unknown,
+  { headers, signal }: { headers?: Record<string, string>; signal?: AbortSignal } = {},
+): Promise<T> {
   return request<T>(path, {
     method: "POST",
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? headers : { "Content-Type": "application/json", ...headers },
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal,
   });
 }

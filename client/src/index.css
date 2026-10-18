@@ -152,6 +152,142 @@ button {
   color: var(--text);
 }
 
+.toolbar-action {
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.toast {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 12px 16px;
+  border: 1px solid #aceebb;
+  border-radius: 8px;
+  background: #dafbe1;
+  color: #1a7f37;
+  font-size: 0.875rem;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.12);
+}
+
+/* Modal */
+
+.modal {
+  width: min(720px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  overflow: auto;
+}
+
+.modal::backdrop {
+  background: rgb(15 23 42 / 0.45);
+}
+
+/* Create order form */
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+}
+
+.order-form h2 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.order-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.order-items {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.order-items .order-form-row {
+  width: 100%;
+}
+
+.order-items legend {
+  padding: 0 4px;
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.field--narrow {
+  flex: 0 1 130px;
+}
+
+.field input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.field-error {
+  color: var(--danger);
+  font-size: 0.75rem;
+}
+
+.remove-item {
+  margin-top: 22px;
+  padding: 7px 10px;
+}
+
+.order-form-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.order-form-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.discard-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid #ffcecb;
+  border-radius: 6px;
+  background: #ffebe9;
+  font-size: 0.875rem;
+}
+
+.discard-confirm p {
+  flex: 1 1 280px;
+  margin: 0;
+}
+
+.button-danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: #ffffff;
+  font-weight: 600;
+}
+
 /* Table */
 
 .orders-scroll {
