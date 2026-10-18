@@ -102,4 +102,14 @@ export const migrations: Migration[] = [
         WHERE idempotency_key IS NOT NULL;
     `,
   },
+  {
+    id: 5,
+    name: "orders_version",
+    // Optimistic concurrency for edits: an update must name the version it was based on,
+    // so two people editing the same order cannot silently overwrite each other.
+    sql: `
+      ALTER TABLE orders ADD COLUMN version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE orders ADD COLUMN updated_at TEXT;
+    `,
+  },
 ];

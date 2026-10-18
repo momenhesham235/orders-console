@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { db } from "../db/connection.js";
 import type { OrderStatus } from "./order-status.js";
-import type { CreateOrderInput, ListOrdersQuery, OrderCursor, SortField } from "./orders.schema.js";
+import type { CreateOrderInput, ListOrdersQuery, OrderCursor, SortField, UpdateOrderInput } from "./orders.schema.js";
 
 export interface OrderSummary {
   id: number;
@@ -11,6 +11,17 @@ export interface OrderSummary {
   totalCents: number;
   itemCount: number;
   createdAt: string;
+}
+
+export interface OrderItem {
+  productName: string;
+  quantity: number;
+  unitPriceCents: number;
+}
+
+export interface OrderDetail extends OrderSummary {
+  version: number;
+  items: OrderItem[];
 }
 
 export interface OrdersPage {
@@ -115,6 +126,32 @@ function findOrderSummary(id: number): OrderSummary {
   return db.prepare(`SELECT ${SUMMARY_COLUMNS} FROM orders o WHERE o.id = ?`).get(id) as OrderSummary;
 }
 
+function totalOf(items: OrderItem[]): number {
+  return items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+}
+
+function insertItems(orderId: number, items: OrderItem[]): void {
+  const insertItem = db.prepare(
+    "INSERT INTO order_items (order_id, product_name, quantity, unit_price_cents) VALUES (?, ?, ?, ?)",
+  );
+  for (const item of items) insertItem.run(orderId, item.productName, item.quantity, item.unitPriceCents);
+}
+
+export function findOrderDetail(id: number): OrderDetail | undefined {
+  const order = db
+    .prepare(`SELECT ${SUMMARY_COLUMNS}, o.version FROM orders o WHERE o.id = ?`)
+    .get(id) as Omit<OrderDetail, "items"> | undefined;
+  if (!order) return undefined;
+
+  const items = db
+    .prepare(
+      `SELECT product_name AS productName, quantity, unit_price_cents AS unitPriceCents
+       FROM order_items WHERE order_id = ? ORDER BY id`,
+    )
+    .all(id) as OrderItem[];
+  return { ...order, items };
+}
+
 export function createOrder(
   input: CreateOrderInput,
   { userId, idempotencyKey }: { userId: number; idempotencyKey: string },
@@ -122,7 +159,7 @@ export function createOrder(
   // Fingerprint of the validated request, to tell a genuine retry from a key reused for a different order.
   const requestHash = createHash("sha256").update(JSON.stringify(input)).digest("hex");
   // The total is computed here from the line items; a client-sent total is never trusted.
-  const totalCents = input.items.reduce((sum, item) => sum + item.quantity * item.unitPriceCents, 0);
+  const totalCents = totalOf(input.items);
 
   const create = db.transaction((): CreateOrderResult => {
     // The unique index decides the race: of all concurrent requests with this key, exactly one
@@ -139,12 +176,7 @@ export function createOrder(
       | undefined;
 
     if (inserted) {
-      const insertItem = db.prepare(
-        "INSERT INTO order_items (order_id, product_name, quantity, unit_price_cents) VALUES (?, ?, ?, ?)",
-      );
-      for (const item of input.items) {
-        insertItem.run(inserted.id, item.productName, item.quantity, item.unitPriceCents);
-      }
+      insertItems(inserted.id, input.items);
       return { outcome: "created", order: findOrderSummary(inserted.id) };
     }
 
@@ -160,6 +192,38 @@ export function createOrder(
   // IMMEDIATE takes the write lock up front, so concurrent writers (even from other processes
   // sharing this database file) queue behind each other instead of failing mid-transaction.
   return create.immediate();
+}
+
+export type UpdateOrderResult =
+  | { outcome: "updated"; order: OrderDetail }
+  | { outcome: "not-found" }
+  | { outcome: "version-conflict" };
+
+export function updateOrder(id: number, { version, status, ...input }: UpdateOrderInput): UpdateOrderResult {
+  const update = db.transaction((): UpdateOrderResult => {
+    // Compare-and-set on the version: only an editor who saw the latest version can save;
+    // anyone else gets a conflict instead of silently overwriting the other person's change.
+    const updated = db
+      .prepare(
+        `UPDATE orders
+         SET customer_name = ?, customer_email = ?, status = ?, total_cents = ?,
+             version = version + 1, updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+         WHERE id = ? AND version = ?`,
+      )
+      .run(input.customerName, input.customerEmail, status, totalOf(input.items), id, version);
+
+    if (updated.changes === 0) {
+      const exists = db.prepare("SELECT 1 FROM orders WHERE id = ?").get(id);
+      return exists ? { outcome: "version-conflict" } : { outcome: "not-found" };
+    }
+
+    // Replace the line items wholesale: the order row and its items change together or not at all.
+    db.prepare("DELETE FROM order_items WHERE order_id = ?").run(id);
+    insertItems(id, input.items);
+    return { outcome: "updated", order: findOrderDetail(id)! };
+  });
+
+  return update.immediate();
 }
 
 // Line items go with it (ON DELETE CASCADE); the search index is updated by its trigger.

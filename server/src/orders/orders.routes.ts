@@ -1,8 +1,15 @@
 import { Router } from "express";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../auth/auth.middleware.js";
-import { createOrder, deleteOrder, listOrders } from "./orders.repository.js";
-import { createOrderSchema, encodeCursor, idempotencyKeySchema, listOrdersQuerySchema } from "./orders.schema.js";
+import { createOrder, deleteOrder, findOrderDetail, listOrders, updateOrder } from "./orders.repository.js";
+import {
+  createOrderSchema,
+  encodeCursor,
+  idempotencyKeySchema,
+  listOrdersQuerySchema,
+  orderIdSchema,
+  updateOrderSchema,
+} from "./orders.schema.js";
 
 export const ordersRouter = Router();
 
@@ -56,7 +63,48 @@ ordersRouter.post("/", (req, res) => {
   }
 });
 
-const orderIdSchema = z.coerce.number().int().positive();
+ordersRouter.get("/:id", (req, res) => {
+  const id = orderIdSchema.safeParse(req.params.id);
+  if (!id.success) {
+    res.status(400).json({ error: "Invalid order id" });
+    return;
+  }
+
+  const order = findOrderDetail(id.data);
+  if (!order) {
+    res.status(404).json({ error: "Order not found" });
+    return;
+  }
+  res.json({ order });
+});
+
+// Agents and admins can edit. The body names the version it was based on (optimistic locking).
+ordersRouter.put("/:id", (req, res) => {
+  const id = orderIdSchema.safeParse(req.params.id);
+  if (!id.success) {
+    res.status(400).json({ error: "Invalid order id" });
+    return;
+  }
+
+  const input = updateOrderSchema.safeParse(req.body);
+  if (!input.success) {
+    res.status(400).json({ error: "Invalid order", details: z.flattenError(input.error).fieldErrors });
+    return;
+  }
+
+  const result = updateOrder(id.data, input.data);
+  switch (result.outcome) {
+    case "updated":
+      res.json({ order: result.order });
+      return;
+    case "not-found":
+      res.status(404).json({ error: "Order not found" });
+      return;
+    case "version-conflict":
+      res.status(409).json({ error: "Someone else changed this order while you were editing it" });
+      return;
+  }
+});
 
 ordersRouter.delete("/:id", requireRole("admin"), (req, res) => {
   const id = orderIdSchema.safeParse(req.params.id);

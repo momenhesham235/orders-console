@@ -79,3 +79,13 @@ export const createOrderSchema = z.object({
 });
 
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+export const updateOrderSchema = createOrderSchema.extend({
+  status: z.enum(ORDER_STATUSES),
+  // The version the editor started from; the update is refused if the order has moved on.
+  version: z.int().min(1),
+});
+
+export type UpdateOrderInput = z.infer<typeof updateOrderSchema>;
+
+export const orderIdSchema = z.coerce.number().int().positive();
