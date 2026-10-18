@@ -51,4 +51,39 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_orders_status_total      ON orders (status, total_cents, id);
     `,
   },
+  {
+    id: 3,
+    name: "orders_search_fts",
+    // Substring search on customer name/email. A B-tree index cannot serve LIKE '%term%',
+    // a trigram index can (for terms of 3+ characters). External content: the text lives
+    // only in orders; the triggers keep the index in step with every write.
+    sql: `
+      CREATE VIRTUAL TABLE orders_search USING fts5(
+        customer_name,
+        customer_email,
+        content = 'orders',
+        content_rowid = 'id',
+        tokenize = 'trigram'
+      );
+
+      INSERT INTO orders_search (orders_search) VALUES ('rebuild');
+
+      CREATE TRIGGER orders_search_after_insert AFTER INSERT ON orders BEGIN
+        INSERT INTO orders_search (rowid, customer_name, customer_email)
+        VALUES (new.id, new.customer_name, new.customer_email);
+      END;
+
+      CREATE TRIGGER orders_search_after_delete AFTER DELETE ON orders BEGIN
+        INSERT INTO orders_search (orders_search, rowid, customer_name, customer_email)
+        VALUES ('delete', old.id, old.customer_name, old.customer_email);
+      END;
+
+      CREATE TRIGGER orders_search_after_update AFTER UPDATE OF customer_name, customer_email ON orders BEGIN
+        INSERT INTO orders_search (orders_search, rowid, customer_name, customer_email)
+        VALUES ('delete', old.id, old.customer_name, old.customer_email);
+        INSERT INTO orders_search (rowid, customer_name, customer_email)
+        VALUES (new.id, new.customer_name, new.customer_email);
+      END;
+    `,
+  },
 ];

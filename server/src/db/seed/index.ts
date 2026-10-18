@@ -68,6 +68,14 @@ async function seed() {
 
   // One transaction: all-or-nothing, and orders of magnitude faster than autocommit per row.
   db.transaction(() => {
+    // Bulk-load pattern: maintaining the search index row by row makes the seed ~5x slower,
+    // so suspend its triggers and rebuild it once at the end. DDL is transactional in SQLite,
+    // so a failed seed rolls the triggers back too.
+    const searchTriggers = db
+      .prepare("SELECT name, sql FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'orders' AND name LIKE 'orders_search_%'")
+      .all() as { name: string; sql: string }[];
+    for (const trigger of searchTriggers) db.exec(`DROP TRIGGER ${trigger.name}`);
+
     db.exec("DELETE FROM order_items; DELETE FROM orders; DELETE FROM users;");
 
     for (const user of users) insertUser.run(user.email, user.passwordHash, user.role);
@@ -96,6 +104,9 @@ async function seed() {
       }
       itemCount += items.length;
     }
+
+    db.exec("INSERT INTO orders_search (orders_search) VALUES ('rebuild')");
+    for (const trigger of searchTriggers) db.exec(trigger.sql);
   })();
 
   // Refresh the query planner's statistics so it picks the right index for each query.
