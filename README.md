@@ -46,6 +46,22 @@ server/               Node · Express · TypeScript
   src/routes/         HTTP route handlers
 ```
 
+## Indexes (R1)
+
+The list never sends the table to the browser: it fetches 50 rows at a time with a keyset cursor, and only visible rows are rendered. Each query shape has an index (see [migrations.ts](server/src/db/migrations.ts)):
+
+| Index | Serves |
+| ----- | ------ |
+| `idx_orders_created_at (created_at, id)` | Sort by date, no status filter |
+| `idx_orders_total (total_cents, id)` | Sort by amount, no status filter |
+| `idx_orders_status_created_at (status, created_at, id)` | Status filter + sort by date |
+| `idx_orders_status_total (status, total_cents, id)` | Status filter + sort by amount |
+| `orders_search` (FTS5, trigram) | Search on customer name or email, 3+ characters |
+| `idx_order_items_order_id (order_id)` | Item count per order |
+| `idx_orders_idempotency (created_by, idempotency_key)`, unique | R2 duplicate protection |
+
+The trailing `id` in each sort index is the keyset tie-breaker, so "the page after (value, id)" is one index range scan. `EXPLAIN QUERY PLAN` shows a covering index search with no temporary sort for every filter and sort combination, and a page takes about 3 ms whether it is the first or the 500th. Searches of 1–2 characters use an escaped `LIKE` scan instead (the trigram index needs 3); see DECISIONS.md.
+
 ## Code review: the contractor's auth middleware
 
 Every problem I found in the `auth.ts` / `routes.ts` snippet from the brief, and what replaced it. The fixed code lives in [`server/src/auth/`](server/src/auth/) and [`server/src/orders/orders.routes.ts`](server/src/orders/orders.routes.ts).
