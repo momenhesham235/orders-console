@@ -29,6 +29,37 @@ Sign-in sessions end when the API restarts unless `JWT_SECRET` is set (see `serv
 
 Optional: copy `server/.env.example` to `server/.env` (and `client/.env.example` to `client/.env`) to override the defaults.
 
+## Screenshots
+
+Captured from the running app with `SIMULATED_LATENCY_MS=1500` (each list request delayed by a random 0–1.5 s).
+
+**R1: search, filter and sort.** Searching "alharbi" with status Paid and sort "Highest amount" gives 50 rows per page and more on scroll; the filters are kept in the URL (`?q=alharbi&status=paid&sort=highest`).
+
+![Orders list filtered by search, status and sort](docs/screenshots/r1-list.png)
+
+**R1: rapid filter changes.** The status was switched Paid → Pending → Cancelled in quick succession, then I waited past the maximum latency. Every row is Cancelled: no earlier, slower response replaced the latest one. In this run the browser log shows the superseded request aborted (`net::ERR_ABORTED`) and only the final filter's request completing.
+
+![After three quick status changes, only cancelled orders are shown](docs/screenshots/r1-rapid-filter.png)
+
+**R2: create with a double-click.** The Create button was double-clicked. The new order appears once, and the database holds exactly one order with that name.
+
+![The new order appears once after a double-clicked submit](docs/screenshots/r2-create.png)
+
+**R2: the duplicate proof (`npm test`).** Two API processes share one database, and the same request goes to both at once:
+
+```
+▶ POST /api/orders is idempotent
+  ✔ the same request fired twice in parallel creates exactly one order
+  ✔ 20 parallel duplicates across two processes still create exactly one order
+  ✔ a sequential retry returns the original order instead of a new one
+  ✔ reusing a key for a different order is rejected, not silently merged
+  ✔ different keys are different orders, even with identical details
+  ✔ a request without a valid key, or with an invalid body, creates nothing
+ℹ tests 6
+ℹ pass 6
+ℹ fail 0
+```
+
 ## Project structure
 
 ```
