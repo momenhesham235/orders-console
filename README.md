@@ -7,9 +7,18 @@ Requires Node.js 20.12+ (developed on Node 24). No database server to install 鈥
 
 ```bash
 npm install          # installs both workspaces (client + server)
-npm run db:migrate   # creates the schema (also runs automatically on server start)
+npm run db:seed      # creates the schema and seeds 50,000 orders + 2 users (~5s, resets existing data)
 npm run dev          # API on http://localhost:4000, UI on http://localhost:5173
 ```
+
+`npm run db:seed -- --orders=200000` seeds a different number of orders. The data is deterministic: every run produces the same orders.
+
+### Seeded users
+
+| Role  | Email                | Password     |
+| ----- | -------------------- | ------------ |
+| admin | `admin@orders.local` | `Admin#2026` |
+| agent | `agent@orders.local` | `Agent#2026` |
 
 Optional: copy `server/.env.example` to `server/.env` (and `client/.env.example` to `client/.env`) to override the defaults.
 
@@ -20,6 +29,8 @@ client/               React 18+ 路 Vite 路 TypeScript
   src/api/            HTTP calls to the back end
 server/               Node 路 Express 路 TypeScript
   src/config/         Environment loading and validation
-  src/db/             SQLite connection, migrations
+  src/auth/           Password hashing (auth middleware to come)
+  src/db/             SQLite connection, migrations, seed script
+  src/orders/         Orders domain
   src/routes/         HTTP route handlers
 ```
