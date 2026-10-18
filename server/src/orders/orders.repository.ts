@@ -101,3 +101,8 @@ export function listOrders({ search, status, sort, direction, limit, cursor }: L
 
   return { orders, nextCursor };
 }
+
+// Line items go with it (ON DELETE CASCADE); the search index is updated by its trigger.
+export function deleteOrder(id: number): boolean {
+  return db.prepare("DELETE FROM orders WHERE id = ?").run(id).changes > 0;
+}

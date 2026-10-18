@@ -1,4 +1,6 @@
+import cookieParser from "cookie-parser";
 import express, { type ErrorRequestHandler } from "express";
+import { authRouter } from "./auth/auth.routes.js";
 import { env } from "./config/env.js";
 import { simulatedLatency } from "./middleware/simulated-latency.js";
 import { ordersRouter } from "./orders/orders.routes.js";
@@ -14,8 +16,10 @@ export function createApp() {
 
   app.disable("x-powered-by");
   app.use(express.json({ limit: "100kb" }));
+  app.use(cookieParser());
 
   app.use("/api/health", healthRouter);
+  app.use("/api/auth", authRouter);
 
   if (env.SIMULATED_LATENCY_MS > 0) app.use("/api/orders", simulatedLatency(env.SIMULATED_LATENCY_MS));
   app.use("/api/orders", ordersRouter);
