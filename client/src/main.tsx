@@ -8,6 +8,7 @@ import { ApiError } from "./api/http.ts";
 import { App } from "./App.tsx";
 import { markSignedOut } from "./features/auth/useAuth.ts";
 import { NotFoundPage } from "./features/not-found/NotFoundPage.tsx";
+import { isAppPath } from "./lib/routes.ts";
 import "./index.css";
 
 const queryClient: QueryClient = new QueryClient({
@@ -32,12 +33,10 @@ const queryClient: QueryClient = new QueryClient({
 const rootElement = document.getElementById("root");
 if (!rootElement) throw new Error("Missing #root element in index.html");
 
-// There is no router: the console is a single screen at "/". Any other path shows a 404 screen
-// without touching the API. (/api/* never gets here: the dev proxy sends it to the server.)
-const isAppPath = window.location.pathname === "/";
-
+// Unknown paths show a 404 screen without touching the API. (/api/* never gets here: the dev
+// proxy sends it to the server.)
 createRoot(rootElement).render(
-  isAppPath ? (
+  isAppPath(window.location.pathname) ? (
     <QueryClientProvider client={queryClient}>
       <App />
     </QueryClientProvider>

@@ -1,4 +1,5 @@
 import { StateMessage } from "../../components/StateMessage.tsx";
+import { ROUTES } from "../../lib/routes.ts";
 
 export function NotFoundPage() {
   return (
@@ -12,7 +13,7 @@ export function NotFoundPage() {
           </>
         }
         action={
-          <a className="button-primary button-link" href="/">
+          <a className="button-primary button-link" href={ROUTES.orders}>
             Go to orders
           </a>
         }
